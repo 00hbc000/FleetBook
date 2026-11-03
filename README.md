@@ -1,4 +1,4 @@
-# FleetBook — phases 1 et 2 (Milestones 2 et 3)
+# FleetBook — application, conteneurs et pipeline bloquante
 
 **Application volontairement vulnérable, à utiliser uniquement en local.**
 
@@ -11,6 +11,8 @@ FleetBook/
 ├── .gitignore
 ├── .env.example
 ├── .gitleaks.toml
+├── .gitlab-ci.yml
+├── .semgrep.yml
 ├── docker-compose.yml
 ├── README.md
 ├── backend/
@@ -29,6 +31,8 @@ FleetBook/
 │       ├── config.js
 │       ├── db.js
 │       └── server.js
+├── scripts/
+│   └── demo_blocage.sh
 ├── frontend/
 │   ├── .dockerignore
 │   ├── Dockerfile
@@ -38,7 +42,9 @@ FleetBook/
 │   └── app.js
 └── docs/
     ├── vulnerabilites.md
-    └── stride.md
+    ├── stride.md
+    ├── politique_blocage.md
+    └── runner_local.md
 ```
 
 ## Lancer maintenant (sans Docker, phase 1)
@@ -121,3 +127,9 @@ curl -s http://127.0.0.1:8080/api/vehicles
 Capturer les sorties montrant : images construites, trois états healthy, UID non nul dans chaque conteneur, absence de `.git` et `.env`, réponse santé `200`, liste de dix véhicules et une connexion avec les comptes fictifs. `docker compose images` montre les images construites. Ne jamais capturer un vrai secret dans une capture d'écran.
 
 **Phases suivantes, sur demande seulement :** CI GitLab, Kubernetes kind, corrections sur une autre branche et DAST. Les défauts VULN-01 à VULN-07 restent présents ici.
+
+## Block 2 — pipeline GitLab bloquante
+
+Les fichiers `.gitlab-ci.yml` et `.semgrep.yml` définissent la construction, les tests, Semgrep, Gitleaks, Trivy (fichiers et images), le push au registre GitLab et les jobs conditionnels `deploy` / `dast`. Les rapports JSON sont des artefacts GitLab. La politique et ses limites sont dans [docs/politique_blocage.md](docs/politique_blocage.md) ; l'installation du Runner **local** et de ses outils en terminal est dans [docs/runner_local.md](docs/runner_local.md). La démonstration de fausse fuite, **uniquement après les corrections sur la branche `secure`**, est dans `scripts/demo_blocage.sh`.
+
+Ce dépôt est hébergé sur GitHub dans cette session Arena : **GitLab n'exécutera ce fichier que si vous poussez la branche dans votre propre projet GitLab.** Le Runner shell doit être sur la VM du cluster avec le tag `fleetbook-local`, Docker et les outils installés. Le Block 2 ne crée ni cluster ni cible ZAP : ces jobs restent conditionnels jusqu'aux Blocks 3 et 5. Sur la branche vulnérable, les scans sont supposés **échouer** et empêcher le push/deploy automatique ; ne pas désactiver un contrôle pour obtenir artificiellement du vert. Ne jamais copier un jeton GitLab ou un vrai secret dans ce dépôt, dans une capture ou dans une conversation.

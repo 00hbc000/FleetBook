@@ -10,7 +10,7 @@ ALICE=$(curl -s -X POST "$BASE/api/login" -H 'Content-Type: application/json' -d
 ADMIN=$(curl -s -X POST "$BASE/api/login" -H 'Content-Type: application/json' -d '{"email":"admin@fleetbook.test","password":"Demo123!"}' | jq -r .token)
 ```
 
-| ID | Emplacement (fichier : ligne) | Cause | Impact | OWASP Top 10 (2021) | Preuve locale sans dommage | Correction envisagée (phase 5) |
+| ID | Emplacement (fichier : ligne) | Cause | Impact | OWASP Top 10 (2021) | Preuve locale sans dommage | Correction envisagée (Block 4) |
 |---|---|---|---|---|---|---|
 | VULN-01 | `backend/src/server.js:46-47`, `:61-62` | Email de connexion et recherche concaténés dans SQL. | Modifier la requête ; lire des résultats inattendus. Le mot de passe reste vérifié par bcrypt dans la connexion. | A03 Injection | `curl -G --data-urlencode "search=%' OR 1=1 -- " "$BASE/api/vehicles"` renvoie les 10 véhicules. Pour la connexion : email `admin@fleetbook.test' -- ` avec le mot de passe fictif connu retourne l'admin alors que cet email n'existe pas. | Paramètres `$1` de `pg`, y compris pour `ILIKE`, plus tests de régression. |
 | VULN-02 | `backend/src/server.js:111-117` | GET par id ne compare pas `user_id` au JWT. | Un utilisateur lit une réservation d'un autre. | A01 Broken Access Control | `curl -H "Authorization: Bearer $ALICE" "$BASE/api/bookings/2"` renvoie la réservation fictive de Benoît. | Ajouter `AND b.user_id=$2`, sauf accès admin autorisé explicitement. |

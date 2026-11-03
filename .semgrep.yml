@@ -1,0 +1,13 @@
+# Règles locales simples : les erreurs bloquent la pipeline.
+rules:
+  - id: fleetbook-sql-concatene
+    languages: [javascript]
+    severity: ERROR
+    message: "Requête SQL concaténée : utiliser des paramètres pg."
+    patterns:
+      - pattern: db.query($LEFT + $RIGHT)
+  - id: fleetbook-html-non-echappe
+    languages: [javascript]
+    severity: ERROR
+    message: "Insertion HTML non échappée : utiliser textContent."
+    pattern: $NODE.innerHTML = $VALUE
