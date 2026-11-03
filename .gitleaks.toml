@@ -2,6 +2,9 @@
 # Règle locale pour les exercices VULN-05 ; jamais pour un vrai secret.
 title = "FleetBook - secrets factices de formation"
 
+[extend]
+useDefault = true
+
 [[rules]]
 id = "fleetbook-fake-training-secrets"
 description = "Secrets factices écrits en dur (VULN-05)"

@@ -32,13 +32,24 @@ app.post('/api/register', route(async (req, res) => {
   res.status(201).json(result.rows[0]);
 }));
 
+app.get('/health', route(async (req, res) => {
+  await db.query('SELECT 1');
+  res.json({ status: 'ok' });
+}));
+
 app.post('/api/login', route(async (req, res) => {
   const { email, password } = req.body;
-  if (typeof email !== 'string' || !email || typeof password !== 'string') return res.status(400).json({ error: 'Identifiants requis' });
+  if (typeof email !== 'string' || !email || typeof password !== 'string') {
+    console.warn('Connexion échouée'); // Jamais de mot de passe dans les journaux.
+    return res.status(400).json({ error: 'Identifiants requis' });
+  }
   // VULN-01 : concaténation SQL volontaire sur l'email (ne pas réutiliser).
   const result = await db.query("SELECT id, name, email, role, password_hash FROM users WHERE email = '" + email + "' LIMIT 1");
   const user = result.rows[0];
-  if (!user || !(await bcrypt.compare(password, user.password_hash))) return res.status(401).json({ error: 'Identifiants invalides' });
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+    console.warn('Connexion échouée'); // Ne pas inscrire le mot de passe dans les journaux.
+    return res.status(401).json({ error: 'Identifiants invalides' });
+  }
   const token = jwt.sign({ id: user.id, role: user.role }, jwtSecret, { expiresIn: '2h' });
   res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
 }));

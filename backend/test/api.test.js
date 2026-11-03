@@ -9,6 +9,9 @@ const { jwtSecret } = require('../src/config');
 // Tests rapides sans PostgreSQL : les réponses de pg sont simulées.
 test('API locale : routes, rôles et vulnérabilités pédagogiques', async () => {
   const originalQuery = db.query;
+  const originalWarn = console.warn;
+  const warnings = [];
+  console.warn = (...parts) => warnings.push(parts.join(' '));
   const queries = [];
   const hash = await bcrypt.hash('Demo123!', 4);
   db.query = async (sql, params) => {
@@ -26,6 +29,10 @@ test('API locale : routes, rôles et vulnérabilités pédagogiques', async () =
   const request = (url, options = {}) => fetch(base + url, options);
   try {
     assert.equal((await request('/')).status, 200);
+    assert.equal((await request('/health')).status, 200);
+    const badLogin = await request('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'alice@fleetbook.test', password: 'wrong-password' }) });
+    assert.equal(badLogin.status, 401);
+    assert.deepEqual(warnings, ['Connexion échouée']);
     const search = await request('/api/vehicles?search=' + encodeURIComponent("%' OR 1=1 -- "));
     assert.equal(search.status, 200);
     assert.match(queries.at(-1).sql, /OR 1=1/); // VULN-01 intentionnelle.
@@ -41,6 +48,7 @@ test('API locale : routes, rôles et vulnérabilités pédagogiques', async () =
     assert.equal((await request('/api/vehicles', { headers: { Origin: 'https://example.invalid' } })).headers.get('access-control-allow-origin'), '*'); // VULN-07.
   } finally {
     db.query = originalQuery;
+    console.warn = originalWarn;
     await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
 });

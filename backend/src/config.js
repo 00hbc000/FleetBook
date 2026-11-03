@@ -3,6 +3,6 @@
 module.exports = {
   jwtSecret: 'FAKE_JWT_SECRET_FOR_TRAINING',
   apiKey: 'FAKE_API_KEY_FOR_TRAINING',
-  databaseUrl: process.env.DATABASE_URL || 'postgres://fleetbook:fleetbook@localhost:5432/fleetbook',
+  databaseUrl: process.env.DATABASE_URL,
   port: Number(process.env.PORT || 3000)
 };
