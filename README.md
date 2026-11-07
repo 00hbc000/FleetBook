@@ -23,7 +23,7 @@ sudo docker compose up -d db
 sudo docker compose --profile tools build migrate
 sudo docker compose --profile tools run --rm migrate
 sudo docker compose up -d --build app
-sudo docker compose exec -T db psql -U fleetbook -d fleetbook < scripts/seed.sql
+sudo docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < scripts/seed.sql
 sudo docker compose ps
 curl -fsS http://127.0.0.1:8081/api/health
 curl -fsS http://127.0.0.1:8081/api/vehicles
@@ -40,7 +40,7 @@ Vérifier sans exposer les mots de passe dans les journaux :
 
 ```bash
 curl -i http://127.0.0.1:8081/api/health
-sudo docker compose exec -T db psql -U fleetbook -d fleetbook -Atc 'SELECT count(*) FROM users; SELECT count(*) FROM vehicles;'
+sudo docker compose exec -T db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT count(*) FROM users; SELECT count(*) FROM vehicles;"'
 sudo docker compose exec -T app id
 sudo docker compose logs --tail=60 app
 ```
