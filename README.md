@@ -1,135 +1,57 @@
-# FleetBook — application, conteneurs et pipeline bloquante
+# FleetBook — version Next.js (migration)
 
-**Application volontairement vulnérable, à utiliser uniquement en local.**
+**Application pédagogique : données fictives, machine personnelle uniquement.** Cette version remplace l'ancienne application Express/nginx dans la branche courante ; l'ancienne reste consultable dans l'historique Git. Ne jamais fusionner les anciennes tables avec celles de Drizzle.
 
-FleetBook est un exercice DevSecOps de réservation de véhicules (TEK-UP, ING-5-SSIR). Toutes les personnes, immatriculations, téléphones, permis, clés et mots de passe fournis sont **fictifs**. Ne pas publier ce service sur Internet et ne pas utiliser de données ou secrets réels. Les sept familles de défauts sont décrites dans [docs/vulnerabilites.md](docs/vulnerabilites.md), avec un modèle [STRIDE](docs/stride.md). Le projet est à corriger plus tard, après les preuves avant/après.
+## Ce qui est déjà vérifié
 
-## Arborescence complète (hors dépendances installées)
+Code importé depuis le dossier Drive de l'étudiant : Next.js 16 / React 19 / Tailwind 4, routes API Next.js, Drizzle + PostgreSQL 16, session JWT en cookie httpOnly. Vérifiés dans l'espace de travail : `npm test`, `npm run lint` (2 avertissements d'images), `npm run typecheck`, `npm run build`. Le build Docker et la connexion PostgreSQL restent **à vérifier sur la VM Ubuntu**. Le projet Drive n'avait ni `package-lock.json` ni dossier `public` : ajoutés pour permettre `npm ci` et le Dockerfile.
 
-```text
-FleetBook/
-├── .gitignore
-├── .env.example
-├── .gitleaks.toml
-├── .gitlab-ci.yml
-├── .semgrep.yml
-├── docker-compose.yml
-├── README.md
-├── backend/
-│   ├── .dockerignore
-│   ├── Dockerfile
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── test/
-│   │   └── api.test.js
-│   ├── db/
-│   │   ├── schema.sql
-│   │   ├── init.js
-│   │   └── seed.js
-│   └── src/
-│       ├── auth.js
-│       ├── config.js
-│       ├── db.js
-│       └── server.js
-├── scripts/
-│   └── demo_blocage.sh
-├── frontend/
-│   ├── .dockerignore
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── index.html
-│   ├── style.css
-│   └── app.js
-└── docs/
-    ├── vulnerabilites.md
-    ├── stride.md
-    ├── politique_blocage.md
-    └── runner_local.md
-```
+Le catalogue, l'inscription utilisateur, la réservation, le tableau client et l'administration viennent du dossier Drive. Le seed comporte 3 comptes et 8 véhicules fictifs. Le rôle admin ne peut pas être choisi lors de l'inscription publique. La connexion à la base et le JWT utilisent des variables d'environnement ; les valeurs de `.env.example` sont factices. Cette migration **n'a pas encore replanté les sept failles VULN-01 à VULN-07** de l'ancien projet : les anciennes preuves ne s'appliquent pas à cette nouvelle architecture. Ne pas présenter cette version comme la branche vulnérable finale.
 
-## Lancer maintenant (sans Docker, phase 1)
+## Démarrage isolé avec Docker sur Ubuntu
 
-Pré-requis : Node.js 20+ / npm et PostgreSQL installé et démarré **sur votre machine**. Sur Linux avec PostgreSQL local neuf :
+Utiliser le dépôt cloné sur la VM, depuis sa racine. L'ancien Compose peut rester actif : cette version utilise un autre projet Docker, un autre volume et le port **8081**, sans réutiliser sa base. Ces commandes créent et alimentent uniquement la base `fleetbook_next` du nouveau conteneur.
 
 ```bash
-sudo -u postgres psql -c "CREATE USER fleetbook WITH PASSWORD 'fleetbook';"
-sudo -u postgres createdb -O fleetbook fleetbook
-export DATABASE_URL='postgres://fleetbook:fleetbook@localhost:5432/fleetbook'
-cd backend
-npm ci
-npm run db:seed
-npm start
-```
-
-Ouvrir **http://localhost:3000** sur cette même machine. `npm run db:init` crée uniquement les tables si besoin ; `npm run db:seed` les crée aussi et **efface puis recrée** les données de démonstration. Si le rôle ou la base existent déjà, ignorer seulement leur commande de création. Si votre PostgreSQL local utilise une autre connexion, définir `DATABASE_URL` avant `npm run db:seed` et `npm start` (exemple fictif par défaut : `postgres://fleetbook:fleetbook@localhost:5432/fleetbook`). `DATABASE_URL` est obligatoire pour la base ; `PORT` est optionnel (3000 par défaut). Le mode sans Docker reste disponible : Express sert les fichiers HTML/CSS/JS en local. Avec Docker, nginx les sert à la place.
-
-Vérification de syntaxe et tests API sans base : `cd backend && npm test`. Vérification de la dépendance : `cd backend && npm audit` (résultat non nul **attendu**). Pour VULN-05, configurer Gitleaks avec `gitleaks dir --config .gitleaks.toml .` ; pour scanner aussi l'historique Git : `gitleaks git --config .gitleaks.toml .` (selon la version de Gitleaks). Les chaînes fictives ne déclenchent pas nécessairement les règles standard sans cette configuration.
-
-## Comptes de test (100 % fictifs)
-
-Même mot de passe pour tous : `Demo123!` — **ne jamais le réutiliser ailleurs**.
-
-| Rôle | Email | Téléphone | Permis |
-|---|---|---|---|
-| admin | admin@fleetbook.test | 0000000001 | FICTIF-PERMIS-001 |
-| user | alice@fleetbook.test | 0000000002 | FICTIF-PERMIS-002 |
-| user | benoit@fleetbook.test | 0000000003 | FICTIF-PERMIS-003 |
-| user | chloe@fleetbook.test | 0000000004 | FICTIF-PERMIS-004 |
-| user | dina@fleetbook.test | 0000000005 | FICTIF-PERMIS-005 |
-
-Il y a 10 véhicules (`DEMO-001` à `DEMO-010`) et 3 réservations de départ. L'inscription crée toujours un compte `user`. La connexion rend un JWT de 2 h ; le navigateur conserve ce jeton en session.
-
-## API minimale
-
-| Méthode et chemin | Usage | Accès prévu |
-|---|---|---|
-| POST `/api/register`, POST `/api/login` | inscription, connexion | public |
-| GET `/api/vehicles?search=...` | liste / recherche | public |
-| POST `/api/vehicles`, PUT `/api/vehicles/:id` | ajout / modification | admin |
-| DELETE `/api/vehicles/:id` | suppression | admin prévu, **VULN-03** |
-| GET `/api/users`, GET `/api/bookings` | toutes les données | admin |
-| POST `/api/bookings`, GET `/api/bookings/my` | réserver / mes réservations | connecté |
-| GET `/api/bookings/:id` | détail | propriétaire prévu, **VULN-02** |
-| POST `/api/bookings/:id/note` | ajouter une note personnelle | propriétaire |
-
-Pour les routes protégées : `Authorization: Bearer <jeton>`. Les réservations d'un véhicule existant empêchent sa suppression par la contrainte SQL ; pour tester DELETE, utiliser `DEMO-010` (id 10) après un nouveau seed.
-
-## Lancer avec Docker Compose (phase 2, VM locale seulement)
-
-Pré-requis : Docker et le plugin `docker compose` v2, avec accès au démon Docker. Depuis la racine `FleetBook/` :
-
-```bash
+cd ~/FleetBook
+git pull origin arena/c5cd84fe-fleetbook
 cp .env.example .env
-docker compose config --quiet
-docker compose build
-docker compose up -d --wait
-docker compose exec -T backend npm run db:seed
-curl -fsS http://127.0.0.1:8080/health
-curl -fsS http://127.0.0.1:8080/api/vehicles
+sudo docker compose config --quiet
+sudo docker compose up -d db
+sudo docker compose --profile tools run --rm migrate
+sudo docker compose up -d --build app
+sudo docker compose exec -T db psql -U fleetbook -d fleetbook < scripts/seed.sql
+sudo docker compose ps
+curl -fsS http://127.0.0.1:8081/api/health
+curl -fsS http://127.0.0.1:8081/api/vehicles
 ```
 
-`docker compose ps` doit montrer les trois services **healthy** ; l'API retourne dix véhicules après le seed. L'interface est servie sur **http://127.0.0.1:8080**, uniquement sur l'hôte Docker. Depuis Windows via le SSH existant : `ssh -p 2222 -L 8080:127.0.0.1:8080 ubuntu@127.0.0.1` dans un terminal dédié, puis `curl http://127.0.0.1:8080/health` dans un autre terminal Windows. Le tunnel doit rester ouvert. Pas de port PostgreSQL ni backend publié. La configuration `.env` est ignorée par Git et contient seulement un mot de passe **fictif** pour la VM ; aucune vraie valeur n'est copiée dans les images. Les valeurs `FAKE_JWT_SECRET_FOR_TRAINING` et `FAKE_API_KEY_FOR_TRAINING` restent volontairement dans l'image backend pour l'exercice VULN-05 (ce ne sont **pas** des secrets réels).
+Résultat attendu **à confirmer sur la VM** : `{"ok":true}`, liste de 8 véhicules et conteneurs sains. `docker compose run migrate` doit finir sans erreur avant de lancer l'app. La commande seed peut être rejouée sans recréer les mêmes véhicules ; elle rétablit les mots de passe de démonstration. `docker compose down` garde le volume ; **`docker compose down -v` efface uniquement le volume de cette nouvelle version**. Ne pas employer `-v` si des données de démonstration doivent être conservées.
 
-Le premier seed efface et recrée les données d'exercice. Le volume nommé `pgdata` conserve la base après `docker compose down`. **Attention :** `docker compose down -v` efface le volume et toutes les données. Si un ancien serveur Phase 1 occupe le port 3000, il n'interfère pas avec le port 8080. Sur une VM avec peu de RAM, le build ou PostgreSQL peuvent échouer : vérifier `free -h`, `docker compose ps` et `docker compose logs --tail=100`; arrêter les autres services gourmands avant de relancer. Éviter deux bases PostgreSQL concurrentes si la VM manque de mémoire.
+### Comptes de démonstration
 
-### Preuves pour le rapport (commandes terminal)
+- `admin@fleetbook.local` / `Admin123!`
+- `client@fleetbook.local` / `Client123!`
+
+Vérifier sans exposer les mots de passe dans les journaux :
 
 ```bash
-docker compose ps
-docker compose exec -T backend id
-docker compose exec -T frontend id
-docker compose exec -T db id
-docker compose exec -T backend sh -c 'test ! -e /app/.git && test ! -e /app/.env && echo "Pas de .git ni de .env dans l image"'
-curl -i http://127.0.0.1:8080/health
-curl -s http://127.0.0.1:8080/api/vehicles
+curl -i http://127.0.0.1:8081/api/health
+sudo docker compose exec -T db psql -U fleetbook -d fleetbook -Atc 'SELECT count(*) FROM users; SELECT count(*) FROM vehicles;'
+sudo docker compose exec -T app id
+sudo docker compose logs --tail=60 app
 ```
 
-Capturer les sorties montrant : images construites, trois états healthy, UID non nul dans chaque conteneur, absence de `.git` et `.env`, réponse santé `200`, liste de dix véhicules et une connexion avec les comptes fictifs. `docker compose images` montre les images construites. Ne jamais capturer un vrai secret dans une capture d'écran.
+Depuis **Windows PowerShell** (pas depuis Ubuntu), maintenir ce tunnel SSH ouvert :
 
-**Phases suivantes, sur demande seulement :** CI GitLab, Kubernetes kind, corrections sur une autre branche et DAST. Les défauts VULN-01 à VULN-07 restent présents ici.
+```powershell
+ssh -p 2222 -N -L 8081:127.0.0.1:8081 ubuntu@127.0.0.1
+```
 
-## Block 2 — pipeline GitLab bloquante
+Tester dans un autre PowerShell : `curl.exe http://127.0.0.1:8081/api/health`. Si le port 8081 est occupé sur Windows, utiliser `-L 8082:127.0.0.1:8081` et tester Windows sur 8082. Sur une VM avec peu de RAM, ne pas lancer kind, Trivy et le build Next.js simultanément ; consulter `free -h` et `sudo docker compose logs --tail=100` si un conteneur ne démarre pas.
 
-Les fichiers `.gitlab-ci.yml` et `.semgrep.yml` définissent la construction, les tests, Semgrep, Gitleaks, Trivy (fichiers et images), le push au registre GitLab et les jobs conditionnels `deploy` / `dast`. Les rapports JSON sont des artefacts GitLab. La politique et ses limites sont dans [docs/politique_blocage.md](docs/politique_blocage.md) ; l'installation du Runner **local** et de ses outils en terminal est dans [docs/runner_local.md](docs/runner_local.md). La démonstration de fausse fuite, **uniquement après les corrections sur la branche `secure`**, est dans `scripts/demo_blocage.sh`.
+## Pipeline GitLab
 
-Ce dépôt est hébergé sur GitHub dans cette session Arena : **GitLab n'exécutera ce fichier que si vous poussez la branche dans votre propre projet GitLab.** Le Runner shell doit être sur la VM du cluster avec le tag `fleetbook-local`, Docker et les outils installés. Le Block 2 ne crée ni cluster ni cible ZAP : ces jobs restent conditionnels jusqu'aux Blocks 3 et 5. Sur la branche vulnérable, les scans sont supposés **échouer** et empêcher le push/deploy automatique ; ne pas désactiver un contrôle pour obtenir artificiellement du vert. Ne jamais copier un jeton GitLab ou un vrai secret dans ce dépôt, dans une capture ou dans une conversation.
+`.gitlab-ci.yml` conserve les **contrôles bloquants** de la précédente pipeline et les adapte à Next.js et au Runner **shell local** (`fleetbook-local`) : build, test/lint/typecheck, Semgrep, Gitleaks, Trivy fs, construction et scan de l'image, push, déploiement, ZAP. La politique est dans `docs/politique_blocage.md`. Les jobs deploy/DAST restent conditionnels : les manifestes K8s téléchargés du Drive **ne sont pas validés** et aucun déploiement n'est prétendu. Les fichiers `GUIDE-UBUNTU.md` et `RAPPORT-FleetBook.md` proviennent du Drive ; les commandes de cette page font foi pour la version migrée.
+
+Ce dépôt Arena est poussé sur GitHub ; `.gitlab-ci.yml` ne s'exécute que dans un **projet GitLab** avec le Runner enregistré. Ne jamais mettre de jeton GitLab ni de vraie clé dans le dépôt. Les défauts d'exercice seront ajoutés ensuite, avec leurs preuves et correctifs séparés.

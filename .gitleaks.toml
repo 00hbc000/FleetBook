@@ -1,12 +1,10 @@
-# Les règles standard ignorent souvent les valeurs délibérément factices.
-# Règle locale pour les exercices VULN-05 ; jamais pour un vrai secret.
-title = "FleetBook - secrets factices de formation"
-
+# Règles standard et règle pédagogique pour une future clé factice dans le code.
+title = "FleetBook Next — démonstration locale"
 [extend]
 useDefault = true
 
 [[rules]]
-id = "fleetbook-fake-training-secrets"
-description = "Secrets factices écrits en dur (VULN-05)"
+id = "fleetbook-demo-secret"
+description = "Clé fictive de démonstration commise par erreur"
 regex = '''FAKE_(JWT_SECRET|API_KEY)_FOR_TRAINING'''
-tags = ["training", "fake-secret"]
+tags = ["training"]

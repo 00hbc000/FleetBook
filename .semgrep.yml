@@ -1,13 +1,17 @@
-# Règles locales simples : les erreurs bloquent la pipeline.
+# Détecteurs de la variante vulnérable Next.js ; toute alerte ERROR bloque.
 rules:
   - id: fleetbook-sql-concatene
-    languages: [javascript]
+    languages: [typescript, javascript]
     severity: ERROR
-    message: "Requête SQL concaténée : utiliser des paramètres pg."
-    patterns:
-      - pattern: db.query($LEFT + $RIGHT)
+    message: 'Requête SQL concaténée : utiliser les paramètres Drizzle ou pg.'
+    pattern: $POOL.query($LEFT + $RIGHT)
   - id: fleetbook-html-non-echappe
-    languages: [javascript]
+    languages: [typescript, javascript]
     severity: ERROR
-    message: "Insertion HTML non échappée : utiliser textContent."
-    pattern: $NODE.innerHTML = $VALUE
+    message: 'Insertion HTML non échappée : afficher du texte sans HTML.'
+    pattern-regex: 'dangerouslySetInnerHTML\s*=\s*\{'
+  - id: fleetbook-role-inscription
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: 'Rôle administrateur attribué depuis une inscription publique.'
+    pattern: 'const $ROLE = $REQUEST === "admin" ? "admin" : "user"'

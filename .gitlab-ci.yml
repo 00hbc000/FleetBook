@@ -1,47 +1,33 @@
-# Runner shell dédié à la VM de formation ; aucun secret ni cible publique ici.
-# Les contrôles bloquent : ne pas employer allow_failure pour les scanners.
-stages:
-  - build
-  - test
-  - sast
-  - secrets
-  - dependencies
-  - image_build
-  - image_scan
-  - push
-  - deploy
-  - dast
-
-variables:
-  BACKEND_IMAGE: "$CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA"
-  FRONTEND_IMAGE: "$CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA"
-  TRIVY_NO_PROGRESS: "true"
-
+# Runner shell local (tag fleetbook-local) : les scanners bloquent avant le push.
+stages: [build, test, sast, secrets, dependencies, image_build, image_scan, push, deploy, dast]
 default:
   tags: [fleetbook-local]
+variables:
+  APP_IMAGE: "$CI_REGISTRY_IMAGE/fleetbook:$CI_COMMIT_SHA"
+  TRIVY_NO_PROGRESS: "true"
+  SEMGREP_ENABLE_VERSION_CHECK: "0"
+  SEMGREP_SEND_METRICS: "off"
 
 build:
   stage: build
   script:
-    - cd backend
     - npm ci --no-audit --no-fund
-    - node --check src/server.js
-    - cd ..
-    - test -s frontend/index.html
-    - test -s frontend/app.js
+    # Identifiants fictifs utilisés uniquement pour la compilation, jamais une connexion réelle.
+    - DATABASE_URL=postgresql://fake:fake@127.0.0.1:5432/fake JWT_SECRET=FAKE_BUILD_SECRET_32_CHARS_NOT_REAL npm run build
 
 test:
   stage: test
   script:
-    - cd backend
     - npm ci --no-audit --no-fund
     - npm test
+    - npm run lint
+    - npm run typecheck
 
 sast:
   stage: sast
   script:
     - mkdir -p reports
-    - semgrep scan --config .semgrep.yml --severity ERROR --error --json --output reports/semgrep.json backend/src frontend/app.js
+    - semgrep scan --metrics off --config .semgrep.yml --severity ERROR --error --strict --json --output reports/semgrep.json src
   artifacts:
     when: always
     paths: [reports/semgrep.json]
@@ -49,13 +35,12 @@ sast:
 
 secrets:
   stage: secrets
-  when: always # Voir aussi cette preuve même si SAST a échoué ; aucun déploiement ensuite.
+  when: always
   script:
     - mkdir -p reports
     - scan_dir=$(mktemp -d)
     - trap 'rm -rf "$scan_dir"' EXIT
-    - git archive HEAD | tar -x -C "$scan_dir" # Seulement les fichiers versionnés ; pas de node_modules.
-    # Le rapport est entièrement masqué ; ne jamais afficher son contenu dans les logs.
+    - git archive HEAD | tar -x -C "$scan_dir"
     - gitleaks dir --config .gitleaks.toml --redact=100 --report-format json --report-path reports/gitleaks.json --exit-code 1 "$scan_dir"
   artifacts:
     when: always
@@ -64,10 +49,10 @@ secrets:
 
 dependencies:
   stage: dependencies
-  when: always # Le rapport Trivy reste disponible si Semgrep/Gitleaks bloquent.
+  when: always
   script:
     - mkdir -p reports
-    - trivy fs --scanners vuln --skip-dirs backend/node_modules --severity CRITICAL --exit-code 1 --format json --output reports/trivy-fs.json backend
+    - trivy fs --scanners vuln --skip-dirs node_modules --severity CRITICAL --exit-code 1 --format json --output reports/trivy-fs.json .
   artifacts:
     when: always
     paths: [reports/trivy-fs.json]
@@ -76,34 +61,27 @@ dependencies:
 image_build:
   stage: image_build
   script:
-    # Le Runner shell utilise le démon Docker de cette VM, avec un seul Runner concurrent.
-    - docker build --tag "$BACKEND_IMAGE" backend
-    - docker build --tag "$FRONTEND_IMAGE" frontend
+    - docker build --target runner --tag "$APP_IMAGE" .
 
 image_scan:
   stage: image_scan
   script:
     - mkdir -p reports
-    - status=0
-    - trivy image --scanners vuln --severity CRITICAL --exit-code 1 --format json --output reports/trivy-backend.json "$BACKEND_IMAGE" || status=1
-    - trivy image --scanners vuln --severity CRITICAL --exit-code 1 --format json --output reports/trivy-frontend.json "$FRONTEND_IMAGE" || status=1
-    - exit "$status"
+    - trivy image --scanners vuln --severity CRITICAL --exit-code 1 --format json --output reports/trivy-image.json "$APP_IMAGE"
   artifacts:
     when: always
-    paths: [reports/trivy-backend.json, reports/trivy-frontend.json]
+    paths: [reports/trivy-image.json]
     expire_in: 7 days
 
 push:
   stage: push
   script:
-    - test -n "$CI_REGISTRY" && test -n "$CI_REGISTRY_USER" && test -n "$CI_REGISTRY_PASSWORD"
+    - test -n "$CI_REGISTRY" && test -n "$CI_REGISTRY_PASSWORD"
     - printf '%s' "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
-    - docker push "$BACKEND_IMAGE"
-    - docker push "$FRONTEND_IMAGE"
+    - docker push "$APP_IMAGE"
     - docker logout "$CI_REGISTRY"
 
-# Les fichiers K8s et les variables protégées arrivent au Block 3.
-# Sur la branche vulnérable, les scanners doivent bloquer AVANT ce job.
+# Réservé au futur bloc Kubernetes : les manifestes Drive n'ont pas été validés.
 deploy:
   stage: deploy
   rules:
@@ -111,16 +89,10 @@ deploy:
       exists: [k8s/namespace.yaml]
   script:
     - kubectl apply -f k8s/namespace.yaml
-    - umask 077
-    - secret_file=$(mktemp)
-    - trap 'rm -f "$secret_file"' EXIT
-    - printf 'POSTGRES_PASSWORD=%s\nJWT_SECRET=%s\n' "$FLEETBOOK_DB_PASSWORD" "$FLEETBOOK_JWT_SECRET" > "$secret_file"
-    - kubectl -n fleetbook create secret generic fleetbook-runtime --from-env-file="$secret_file" --dry-run=client -o yaml | kubectl apply -f -
     - kubectl apply -f k8s/
-    - kubectl -n fleetbook rollout status deployment/backend --timeout=120s
-    - kubectl -n fleetbook rollout status deployment/frontend --timeout=120s
+    - kubectl -n fleetbook rollout status deployment/fleetbook-backend --timeout=120s
 
-# Le script ZAP n'est ajouté qu'au Block 5 ; aucune cible n'est inventée ici.
+# ZAP est ajouté après un déploiement local validé ; aucune URL externe codée en dur.
 dast:
   stage: dast
   rules:
