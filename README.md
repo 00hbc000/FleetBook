@@ -20,6 +20,7 @@ if [ -f .env ]; then mv .env .env.previous-express; fi
 cp .env.example .env
 sudo docker compose config --quiet
 sudo docker compose up -d db
+sudo docker compose --profile tools build migrate
 sudo docker compose --profile tools run --rm migrate
 sudo docker compose up -d --build app
 sudo docker compose exec -T db psql -U fleetbook -d fleetbook < scripts/seed.sql
