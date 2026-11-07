@@ -15,6 +15,8 @@ Utiliser le dépôt cloné sur la VM, depuis sa racine. L'ancien Compose peut re
 ```bash
 cd ~/FleetBook
 git pull origin arena/c5cd84fe-fleetbook
+# Préserver l'ancien .env local avant de créer la configuration Next.js.
+if [ -f .env ]; then mv .env .env.previous-express; fi
 cp .env.example .env
 sudo docker compose config --quiet
 sudo docker compose up -d db
