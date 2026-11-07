@@ -1,29 +1,39 @@
 import { NextResponse } from "next/server";
-import { db } from "@/db";
+import { db, pool } from "@/db";
 import { vehicles } from "@/db/schema";
 import { getSession, safeLog } from "@/lib/auth";
-import { ilike, or, eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const q = searchParams.get("q")?.trim() ?? "";
-  const category = searchParams.get("category") ?? "";
-  const status = searchParams.get("status") ?? "";
+  try {
+    const { searchParams } = new URL(req.url);
+    const q = searchParams.get("q")?.trim() ?? "";
+    const category = searchParams.get("category") ?? "";
+    const status = searchParams.get("status") ?? "";
 
-  let rows;
-  const filters = [];
-  if (q) {
-    filters.push(or(ilike(vehicles.brand, `%${q}%`), ilike(vehicles.model, `%${q}%`))!);
-  }
-  if (category) filters.push(eq(vehicles.category, category));
-  if (status) filters.push(eq(vehicles.status, status as "disponible" | "loue" | "maintenance"));
+    let rows;
+    const filters = [];
+    if (q) {
+      // VULN-01 : requête SQL volontairement concaténée pour la recherche.
+      const found = await pool.query(
+        "SELECT id FROM vehicles WHERE brand ILIKE '%" + q + "%' OR model ILIKE '%" + q + "%'"
+      );
+      const ids = found.rows.map((row: { id: number }) => row.id);
+      filters.push(inArray(vehicles.id, ids));
+    }
+    if (category) filters.push(eq(vehicles.category, category));
+    if (status) filters.push(eq(vehicles.status, status as "disponible" | "loue" | "maintenance"));
 
-  if (filters.length > 0) {
-    rows = await db.select().from(vehicles).where(and(...filters));
-  } else {
-    rows = await db.select().from(vehicles);
+    if (filters.length > 0) {
+      rows = await db.select().from(vehicles).where(and(...filters));
+    } else {
+      rows = await db.select().from(vehicles);
+    }
+    return NextResponse.json({ vehicles: rows });
+  } catch (e) {
+    // VULN-07 : message détaillé et pile exposés au client local.
+    return NextResponse.json({ error: String(e), stack: e instanceof Error ? e.stack : '' }, { status: 500 });
   }
-  return NextResponse.json({ vehicles: rows });
 }
 
 export async function POST(req: Request) {

@@ -30,10 +30,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
 
 export async function DELETE(_: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSession();
-  if (!session || session.role !== "admin")
-    return NextResponse.json({ error: "Réservé aux administrateurs" }, { status: 403 });
+  // VULN-03 : session requise, mais rôle administrateur non vérifié pour DELETE.
+  if (!session)
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   const { id } = await ctx.params;
   await db.delete(vehicles).where(eq(vehicles.id, Number(id)));
-  safeLog("vehicle_deleted", { adminId: session.id, vehicleId: Number(id) });
+  safeLog("vehicle_deleted", { byUserId: session.id, vehicleId: Number(id) });
   return NextResponse.json({ ok: true });
 }

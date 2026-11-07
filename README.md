@@ -4,9 +4,9 @@
 
 ## Ce qui est déjà vérifié
 
-Code importé depuis le dossier Drive de l'étudiant : Next.js 16 / React 19 / Tailwind 4, routes API Next.js, Drizzle + PostgreSQL 16, session JWT en cookie httpOnly. Vérifiés dans l'espace de travail : `npm test`, `npm run lint` (2 avertissements d'images), `npm run typecheck`, `npm run build`. Le build Docker et la connexion PostgreSQL restent **à vérifier sur la VM Ubuntu**. Le projet Drive n'avait ni `package-lock.json` ni dossier `public` : ajoutés pour permettre `npm ci` et le Dockerfile.
+Code importé depuis le dossier Drive de l'étudiant : Next.js 16 / React 19 / Tailwind 4, routes API Next.js, Drizzle + PostgreSQL 16, session JWT en cookie httpOnly. Vérifiés dans l'espace de travail : `npm test`, `npm run lint` (2 avertissements d'images), `npm run typecheck`, `npm run build`. Le build Docker, la migration Drizzle, le seed (3 utilisateurs et 8 véhicules) et `/api/health` ont été vérifiés sur la VM par l'étudiant **avant l'ajout des défauts** ; cette variante doit être reconstruite et revalidée. Le projet Drive n'avait ni `package-lock.json` ni dossier `public` : ajoutés pour permettre `npm ci` et le Dockerfile.
 
-Le catalogue, l'inscription utilisateur, la réservation, le tableau client et l'administration viennent du dossier Drive. Le seed comporte 3 comptes et 8 véhicules fictifs. Le rôle admin ne peut pas être choisi lors de l'inscription publique. La connexion à la base et le JWT utilisent des variables d'environnement ; les valeurs de `.env.example` sont factices. Cette migration **n'a pas encore replanté les sept failles VULN-01 à VULN-07** de l'ancien projet : les anciennes preuves ne s'appliquent pas à cette nouvelle architecture. Ne pas présenter cette version comme la branche vulnérable finale.
+Le catalogue, l'inscription utilisateur, la réservation, le tableau client et l'administration viennent du dossier Drive. Le seed comporte 3 comptes et 8 véhicules fictifs. Le rôle admin ne peut pas être choisi lors de l'inscription publique. La connexion à la base utilise une variable d'environnement ; les valeurs de `.env.example` sont factices. Les **sept défauts de formation VULN-01 à VULN-07** sont désormais replantés et marqués dans le code Next.js. Les anciennes preuves Express ne s’appliquent pas : utiliser [docs/vulnerabilites.md](docs/vulnerabilites.md) et [docs/stride.md](docs/stride.md). Sur cette variante vulnérable, le faux secret JWT est volontairement en dur : la variable `JWT_SECRET` de `.env.example` n’est pas utilisée par l’authentification. Aucune vraie clé ni vraie donnée personnelle.
 
 ## Démarrage isolé avec Docker sur Ubuntu
 
@@ -57,4 +57,20 @@ Tester dans un autre PowerShell : `curl.exe http://127.0.0.1:8081/api/health`. S
 
 `.gitlab-ci.yml` conserve les **contrôles bloquants** de la précédente pipeline et les adapte à Next.js et au Runner **shell local** (`fleetbook-local`) : build, test/lint/typecheck, Semgrep, Gitleaks, Trivy fs, construction et scan de l'image, push, déploiement, ZAP. La politique est dans `docs/politique_blocage.md`. Les jobs deploy/DAST restent conditionnels : les manifestes K8s téléchargés du Drive **ne sont pas validés** et aucun déploiement n'est prétendu. Les fichiers `GUIDE-UBUNTU.md` et `RAPPORT-FleetBook.md` proviennent du Drive ; les commandes de cette page font foi pour la version migrée.
 
-Ce dépôt Arena est poussé sur GitHub ; `.gitlab-ci.yml` ne s'exécute que dans un **projet GitLab** avec le Runner enregistré. Ne jamais mettre de jeton GitLab ni de vraie clé dans le dépôt. Les défauts d'exercice seront ajoutés ensuite, avec leurs preuves et correctifs séparés.
+Ce dépôt Arena est poussé sur GitHub ; `.gitlab-ci.yml` ne s'exécute que dans un **projet GitLab** avec le Runner enregistré. Ne jamais mettre de jeton GitLab ni de vraie clé dans le dépôt. Sur cette version « avant », Semgrep et Gitleaks doivent bloquer le pipeline. Le correctif « après » sera traité séparément et ne doit pas modifier le point de référence vulnérable.
+
+## Reconstruire cette variante « avant » sur la VM existante
+
+La migration ajoute une colonne `note` avec valeur par défaut ; les réservations existantes restent en place. **Ne pas supprimer le volume PostgreSQL.** Depuis Ubuntu :
+
+```bash
+cd ~/FleetBook
+git pull origin arena/c5cd84fe-fleetbook
+sudo docker compose --profile tools build migrate
+sudo docker compose --profile tools run --rm migrate
+sudo docker compose up -d --build app
+sudo docker compose ps
+curl -fsS http://127.0.0.1:8081/api/health
+```
+
+Après ce contrôle, utiliser uniquement les comptes et données fictifs de `docs/vulnerabilites.md` pour les preuves « avant ». La compilation de l'image Next.js et le téléchargement de la base Trivy peuvent utiliser beaucoup de mémoire : ne pas lancer kind, ZAP et le build simultanément. **Ne pas modifier cette version avant de conserver les preuves nécessaires.** Les jobs SAST et secrets de GitLab sont censés être rouges ; ce n'est pas un échec imprévu.
