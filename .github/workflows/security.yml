@@ -3,7 +3,7 @@ name: FleetBook - controles de securite
 
 on:
   push:
-    branches: [arena/c5cd84fe-fleetbook]
+    branches: [main, vulnerable, secure]
   workflow_dispatch:
 
 permissions:
