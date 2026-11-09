@@ -11,7 +11,7 @@ test('sept défauts pédagogiques explicitement marqués', () => {
     'src/app/api/auth/login/route.ts', 'next.config.ts',
   ].map(source).join('\n');
   for (let n = 1; n <= 7; n++) assert.match(code, new RegExp(`VULN-${String(n).padStart(2, '0')}`));
-  assert.equal(require('../package.json').dependencies.lodash, '4.17.20');
+  assert.equal(require('../package.json').dependencies.lodash, '4.18.1');
   assert.match(source('src/db/schema.ts'), /note: text\("note"\)/);
   assert.match(source('src/app/api/auth/register/route.ts'), /const safeRole = "user"/);
 });
