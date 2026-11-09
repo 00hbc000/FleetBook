@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { db, pool } from "@/db";
+import { db } from "@/db";
 import { vehicles } from "@/db/schema";
 import { getSession, safeLog } from "@/lib/auth";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, or, ilike } from "drizzle-orm";
 
 export async function GET(req: Request) {
   try {
@@ -14,12 +14,9 @@ export async function GET(req: Request) {
     let rows;
     const filters = [];
     if (q) {
-      // VULN-01 : requête SQL volontairement concaténée pour la recherche.
-      const found = await pool.query(
-        "SELECT id FROM vehicles WHERE brand ILIKE '%" + q + "%' OR model ILIKE '%" + q + "%'"
-      );
-      const ids = found.rows.map((row: { id: number }) => row.id);
-      filters.push(inArray(vehicles.id, ids));
+      // Recherche sécurisée : critère lié par Drizzle (ilike), aucune concaténation.
+      const like = `%${q}%`;
+      filters.push(or(ilike(vehicles.brand, like), ilike(vehicles.model, like)));
     }
     if (category) filters.push(eq(vehicles.category, category));
     if (status) filters.push(eq(vehicles.status, status as "disponible" | "loue" | "maintenance"));

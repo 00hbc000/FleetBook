@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getUserByEmailUnsafe, verifyPassword, signToken, safeLog, AUTH_COOKIE } from "@/lib/auth";
+import { getUserByEmail, verifyPassword, signToken, safeLog, AUTH_COOKIE } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     if (!email || !password) {
       return NextResponse.json({ error: "Email et mot de passe requis" }, { status: 400 });
     }
-    const user = await getUserByEmailUnsafe(String(email));
+    const user = await getUserByEmail(String(email));
     // VULN-07 : aucune limite de tentatives sur cette route de connexion.
     if (!user || !(await verifyPassword(String(password), user.passwordHash))) {
       safeLog("login_failed", { email: String(email).slice(0, 3) + "***" });
