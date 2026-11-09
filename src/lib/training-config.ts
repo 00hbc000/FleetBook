@@ -1,6 +1,9 @@
-// VULN-05 : clés FAUSSES volontairement écrites en dur pour le TP local.
-// Ne jamais réutiliser ces valeurs hors de FleetBook de formation.
-// VULN-06 : lodash@4.17.20 est verrouillé dans package.json pour Trivy (CVE-2021-23337).
-import 'lodash';
-export const JWT_SECRET = 'FAKE_JWT_SECRET_FOR_TRAINING';
-export const API_KEY = 'FAKE_API_KEY_FOR_TRAINING';
+// Configuration d'exécution : le secret JWT vient de l'environnement
+// (fichier .env local ou variable du conteneur), jamais du code source.
+export function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error("JWT_SECRET manquant ou trop court (32 caractères minimum)");
+  }
+  return secret;
+}

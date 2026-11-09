@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 import { db, pool } from "@/db";
-import { JWT_SECRET } from "@/lib/training-config";
+import { getJwtSecret } from "@/lib/training-config";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 
@@ -24,12 +24,12 @@ export async function verifyPassword(pw: string, hash: string) {
 }
 
 export function signToken(user: SessionUser) {
-  return jwt.sign(user, JWT_SECRET, { expiresIn: "7d" });
+  return jwt.sign(user, getJwtSecret(), { expiresIn: "7d" });
 }
 
 export function verifyToken(token: string): SessionUser | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as SessionUser;
+    return jwt.verify(token, getJwtSecret()) as SessionUser;
   } catch {
     return null;
   }
