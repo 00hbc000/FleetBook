@@ -28,7 +28,7 @@ L'application écoute uniquement sur 127.0.0.1:8081.
 
 ## CI GitHub (contrôles bloquants)
 
-.github/workflows/security.yml exécute sur des machines temporaires GitHub : build/tests/lint, Semgrep (ERROR), Gitleaks (secrets), Trivy fs (CRITICAL), puis construction et scan de l'image (Trivy CRITICAL). L'image n'est publiée nulle part pour l'instant : la cible est ECR (AWS). Politique détaillée : docs/politique_blocage.md.
+.github/workflows/security.yml exécute sur des machines temporaires GitHub : build/tests/lint, Semgrep (ERROR), Gitleaks (secrets), Trivy fs (CRITICAL), puis construction et scan de l'image (Trivy CRITICAL). L'image validee est publiee vers GHCR (ghcr.io/00hbc000/fleetbook) apres tous les controles. Politique détaillée : docs/politique_blocage.md.
 
 ## Sécurité
 
