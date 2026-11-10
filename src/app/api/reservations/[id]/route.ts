@@ -4,12 +4,15 @@ import { reservations } from "@/db/schema";
 import { getSession, safeLog } from "@/lib/auth";
 import { eq, and } from "drizzle-orm";
 
-// VULN-02 : lecture par identifiant sans comparaison avec le propriétaire.
 export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   const { id } = await ctx.params;
-  const rows = await db.select().from(reservations).where(eq(reservations.id, Number(id)));
+  // Lecture restreinte au propriétaire ; l'administrateur peut tout consulter.
+  const scope = session.role === "admin"
+    ? eq(reservations.id, Number(id))
+    : and(eq(reservations.id, Number(id)), eq(reservations.userId, session.id));
+  const rows = await db.select().from(reservations).where(scope);
   if (!rows[0]) return NextResponse.json({ error: "Réservation introuvable" }, { status: 404 });
   return NextResponse.json({ reservation: rows[0] });
 }
