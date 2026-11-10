@@ -28,8 +28,8 @@ export async function GET(req: Request) {
     }
     return NextResponse.json({ vehicles: rows });
   } catch (e) {
-    // VULN-07 : message détaillé et pile exposés au client local.
-    return NextResponse.json({ error: String(e), stack: e instanceof Error ? e.stack : '' }, { status: 500 });
+    console.error(e);
+    return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
 

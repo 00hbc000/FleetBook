@@ -29,6 +29,10 @@ test('état de sécurité : 1 défaut restant, 6 corrigés', () => {
   assert.match(source('src/lib/training-config.ts'), /process\.env\.JWT_SECRET/);
   // Défaut 06 corrigé : lodash à jour.
   assert.equal(require('../package.json').dependencies.lodash, '4.18.1');
+  // Défaut 07 (partie 1) corrigé : erreurs génériques et limitation des tentatives de connexion.
+  assert.doesNotMatch(code, /stack/);
+  assert.match(source('src/app/api/auth/login/route.ts'), /tooManyAttempts\(ip\)/);
+  assert.match(source('src/app/api/auth/login/route.ts'), /recordFailedAttempt\(ip\)/);
   assert.match(source('src/db/schema.ts'), /note: text\(\"note\"\)/);
   assert.match(source('src/app/api/auth/register/route.ts'), /const safeRole = "user"/);
 });
