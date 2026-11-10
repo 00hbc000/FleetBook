@@ -53,4 +53,4 @@ Les sept défauts sont corrigés sur la branche `secure`, un commit par défaut,
 | VULN-06 | lodash mis à jour en 4.18.1 (les avis couvrent jusqu'à 4.17.23). | 5c3725d |
 | VULN-07 | Erreurs génériques (plus de pile exposée), limitation des tentatives de connexion (5 par 15 minutes et par IP), en-têtes de sécurité (CSP, X-Frame-Options…) et suppression du CORS `*`. | 208e59d + ae5165b |
 
-CI correspondante : run 42727865370 entièrement vert — build/tests/lint, Semgrep, Gitleaks, Trivy fs, construction et scan de l'image. L'image n'est pas publiée : la publication passera par ECR (AWS). La branche `vulnerable` conserve l'état « avant » pour les démonstrations.
+CI correspondante : run 42727865370 entièrement vert — build/tests/lint, Semgrep, Gitleaks, Trivy fs, construction et scan de l'image. L'image validee est publiee vers GHCR apres tous les controles. La branche `vulnerable` conserve l'état « avant » pour les démonstrations.

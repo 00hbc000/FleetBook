@@ -16,3 +16,7 @@ En cas de vraie fuite : révoquer et remplacer d'abord, vérifier que l'ancienne
 ## Mise à jour — branche secure (novembre 2026)
 
 Les sept défauts pédagogiques sont corrigés sur la branche `secure` (détail dans `docs/vulnerabilites.md`, section « Après »). Le job `image` construit et scanne l'image **sans la publier** : la publication passera par ECR (AWS) dans une étape ultérieure. Preuve : run 42727865370 entièrement vert. Le fichier `.gitlab-ci.yml` et les manifestes K8s hérités du Drive sont supprimés : GitLab est abandonné, et les manifestes seront réécrits pour EKS avec l'architecture à service unique.
+
+## Mise à jour 2 — registre GHCR et cluster local (novembre 2026)
+
+Le lab AWS (Learner Lab) est terminé : il bloquait l'écriture IAM (aucun rôle OIDC ni EKS possible). Le registre retenu est GHCR (GitHub Container Registry) : le job image publie automatiquement vers ghcr.io/00hbc000/fleetbook uniquement après un scan Trivy vert. Le cluster Kubernetes est local (kind) ; les manifestes et le déploiement sont versionnés dans le dépôt. ECR/EKS restent documentés comme cible de production possible hors lab.
