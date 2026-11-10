@@ -23,6 +23,8 @@ fi
 
 IMAGE="ghcr.io/00hbc000/fleetbook:${SHA_COMPLET}"
 
+kubectl apply -f k8s/00-namespace.yaml
+
 if ! kubectl get secret fleetbook-secrets -n "$NAMESPACE" >/dev/null 2>&1; then
   DB_PASSWORD=$(openssl rand -hex 16)
   kubectl create secret generic fleetbook-secrets -n "$NAMESPACE" \
@@ -35,7 +37,6 @@ fi
 docker build --target tooling -t fleetbook-tooling:local .
 kind load docker-image fleetbook-tooling:local --name "$CLUSTER"
 
-kubectl apply -f k8s/00-namespace.yaml
 kubectl apply -f k8s/10-postgres.yaml
 kubectl -n "$NAMESPACE" rollout status deployment/postgres --timeout=180s
 

@@ -38,7 +38,6 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /var/lib/postgresql/data
-              subPath: pgdata
           readinessProbe:
             exec:
               command: ["sh", "-c", "pg_isready -U fleetbook -d fleetbook_next"]
