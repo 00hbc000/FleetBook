@@ -38,3 +38,19 @@ curl -fsS -X DELETE -b "$CLIENT" "$BASE/api/vehicles/$VID"
 Pour VULN-04, créer d'abord une réservation client sur le véhicule 2 à une autre date. Ne coller aucun jeton ou mot de passe réel dans les preuves. Supprimer les cookies temporaires en quittant le shell. Le seed réutilise les mêmes utilisateurs fictifs : il **ne supprime pas** les réservations créées pour les démonstrations. Les nettoyer manuellement ou réinitialiser **uniquement** le nouveau volume Docker d'exercice si nécessaire.
 
 **Limites de la preuve CI :** Semgrep et Gitleaks doivent rendre la branche vulnérable rouge. La politique Trivy bloque `CRITICAL` ; l'avis lodash cité est `HIGH` et peut donc être signalé sans bloquer à lui seul. Les versions de scanners et bases d'avis évoluent : ne jamais inventer un résultat de scan. Le déploiement automatique et ZAP attendent un cluster local vérifié.
+
+## Après — branche secure (novembre 2026)
+
+Les sept défauts sont corrigés sur la branche `secure`, un commit par défaut, avec tests de non-régression dans `test/vulnerabilities.test.cjs` :
+
+| ID | Correction | Commit |
+|---|---|---|
+| VULN-01 | Requêtes paramétrées : Drizzle `eq`/`ilike` pour la connexion et la recherche ; suppression de `getUserByEmailUnsafe`. | cb5766c |
+| VULN-02 | Lecture d'une réservation limitée au propriétaire (l'admin reste autorisé) ; 404 sans révéler l'existence de l'identifiant. | 88e8dd2 |
+| VULN-03 | DELETE véhicule réservé au rôle administrateur (même barrière que PATCH). | c396b22 |
+| VULN-04 | Note affichée en texte simple (`{r.note}`), échappée par React ; plus de `dangerouslySetInnerHTML`. | b1173ca |
+| VULN-05 | Secret JWT lu depuis la variable `JWT_SECRET` (environnement, 32 caractères minimum) ; fausses clés supprimées du code. | ab038b6 |
+| VULN-06 | lodash mis à jour en 4.18.1 (les avis couvrent jusqu'à 4.17.23). | 5c3725d |
+| VULN-07 | Erreurs génériques (plus de pile exposée), limitation des tentatives de connexion (5 par 15 minutes et par IP), en-têtes de sécurité (CSP, X-Frame-Options…) et suppression du CORS `*`. | 208e59d + ae5165b |
+
+CI correspondante : run 42727865370 entièrement vert — build/tests/lint, Semgrep, Gitleaks, Trivy fs, construction et scan de l'image. L'image n'est pas publiée : la publication passera par ECR (AWS). La branche `vulnerable` conserve l'état « avant » pour les démonstrations.
