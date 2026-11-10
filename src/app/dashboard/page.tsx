@@ -88,8 +88,7 @@ export default function Dashboard() {
                 <div>
                   <p className="font-extrabold">#{r.id} · {v ? `${v.brand} ${v.model}` : `Véhicule ${r.vehicleId}`} <span className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${badge(r.status)}`}>{STATUS_FR[r.status] ?? r.status}</span></p>
                   <p className="text-sm text-slate-500">📅 {r.startDate} → {r.endDate} · {v?.licensePlate ?? ""} · {Number(r.totalPrice).toFixed(2)} €</p>
-                  {/* VULN-04 : note stockée affichée comme HTML sans échappement. */}
-                  <div className="text-sm text-slate-700" dangerouslySetInnerHTML={{ __html: r.note || "" }} />
+                  <div className="text-sm text-slate-700">{r.note}</div>
                   <form onSubmit={(e) => { e.preventDefault(); const input = e.currentTarget.elements.namedItem("note") as HTMLInputElement; void saveNote(r.id, input.value); }}>
                     <input name="note" aria-label="Note de réservation" placeholder="Votre note" maxLength={2000} className="mt-2 rounded-lg border p-2 text-sm" />
                     <button className="ml-2 rounded-lg bg-slate-200 px-3 py-2 text-sm">Ajouter la note</button>
