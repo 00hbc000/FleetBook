@@ -125,5 +125,5 @@ jobs:
           path: reports/trivy-image.json
           if-no-files-found: ignore
           retention-days: 7
-      - name: Image prete, publication ECR a venir
-        run: echo "Image construite et scannee avec succes ; la publication vers ECR est prevue dans une etape ulterieure."
+      - name: Image validee, publication ECR depuis le poste
+        run: echo "Image construite et scannee avec succes. Lab AWS : IAM en ecriture bloque, OIDC impossible ; la publication ECR se fait depuis le poste via scripts/ecr-push.sh, uniquement apres une pipeline verte."
