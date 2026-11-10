@@ -126,4 +126,4 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
       - name: Image validee, publication ECR depuis le poste
-        run: echo "Image construite et scannee avec succes. Lab AWS : IAM en ecriture bloque, OIDC impossible ; la publication ECR se fait depuis le poste via scripts/ecr-push.sh, uniquement apres une pipeline verte."
+        run: echo "Image construite et scannee avec succes. Le lab AWS bloque l'ecriture IAM, OIDC impossible ; la publication ECR se fait depuis le poste via scripts/ecr-push.sh, uniquement apres une pipeline verte."
