@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+.next
+*.log
+reports
+Dockerfile
+.gitlab-ci.yml
+GUIDE-UBUNTU.md
+RAPPORT-FleetBook.md
+k8s
