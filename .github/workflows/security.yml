@@ -96,14 +96,13 @@ jobs:
           retention-days: 7
 
   image:
-    name: Image, scan CRITICAL, registre
+    name: Image et scan CRITICAL
     runs-on: ubuntu-latest
     needs: [build_test, sast, secrets, dependencies]
     permissions:
       contents: read
-      packages: write
     env:
-      APP_IMAGE: ghcr.io/${{ github.repository }}:${{ github.sha }}
+      APP_IMAGE: fleetbook:${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
       - name: Construire l'image après tous les contrôles
@@ -126,10 +125,5 @@ jobs:
           path: reports/trivy-image.json
           if-no-files-found: ignore
           retention-days: 7
-      - name: Publier seulement après un scan vert
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker push "${APP_IMAGE,,}"
-          docker logout ghcr.io
+      - name: Image prete, publication ECR a venir
+        run: echo "Image construite et scannee avec succes ; la publication vers ECR est prevue dans une etape ulterieure."
