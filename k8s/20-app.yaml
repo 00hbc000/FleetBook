@@ -54,6 +54,7 @@ spec:
               cpu: 500m
           securityContext:
             runAsNonRoot: true
+            runAsUser: 1000
             allowPrivilegeEscalation: false
             capabilities:
               drop: ["ALL"]
