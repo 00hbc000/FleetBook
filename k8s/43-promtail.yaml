@@ -1,0 +1,119 @@
+# Zone 5 - Promtail : collecte les logs des pods et les envoie a Loki.
+# Version finale de Promtail (fin de vie mars 2026) ; la suite officielle est
+# Grafana Alloy (evolution future documentee dans le rapport).
+#
+# NB : depuis promtail 3.x, kubernetes_sd (role: pod) n'assigne plus
+# automatiquement le label __path__ : le chemin des logs est construit
+# explicitement dans relabel_configs.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: promtail-config
+  namespace: monitoring
+data:
+  config.yml: |
+    server:
+      http_listen_port: 9080
+
+    positions:
+      filename: /tmp/positions.yaml
+
+    clients:
+      - url: http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push
+
+    scrape_configs:
+      - job_name: kubernetes-pods
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          # Pods termines (Job de migration) : non collectes.
+          - action: drop
+            source_labels: [__meta_kubernetes_pod_phase]
+            regex: Pending|Succeeded|Failed|Completed
+          # Labels utiles pour les requetes Loki.
+          - source_labels: [__meta_kubernetes_namespace]
+            target_label: namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_container_name]
+            target_label: container
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            target_label: app
+          # Construction du chemin des logs :
+          # /var/log/pods/<namespace>_<pod>_<uid>/<conteneur>/*.log
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_pod_name, __meta_kubernetes_pod_uid]
+            separator: _
+            target_label: __tmp_pod
+          - source_labels: [__tmp_pod, __meta_kubernetes_pod_container_name]
+            separator: /
+            target_label: __tmp_dir
+          - source_labels: [__tmp_dir]
+            target_label: __path__
+            replacement: /var/log/pods/${1}/*.log
+        pipeline_stages:
+          # Format CRI (containerd).
+          - cri: {}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: promtail
+  namespace: monitoring
+  labels:
+    app: promtail
+spec:
+  selector:
+    matchLabels:
+      app: promtail
+  template:
+    metadata:
+      labels:
+        app: promtail
+    spec:
+      serviceAccountName: promtail
+      containers:
+        - name: promtail
+          image: grafana/promtail:3.6.11
+          # Nom du noeud : promtail filtre les pods par spec.nodeName en
+          # lisant HOSTNAME ; sans cette variable il utilise le nom du pod
+          # et ne decouvre aucun fichier de logs (aucune erreur visible).
+          env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          args:
+            - -config.file=/etc/promtail/config.yml
+          securityContext:
+            # Root necessaire pour lire /var/log/pods sur le noeud.
+            runAsUser: 0
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: config
+              mountPath: /etc/promtail
+              readOnly: true
+            - name: varlogpods
+              mountPath: /var/log/pods
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config
+          configMap:
+            name: promtail-config
+        - name: varlogpods
+          hostPath:
+            path: /var/log/pods
+            type: Directory
+        - name: tmp
+          emptyDir: {}
