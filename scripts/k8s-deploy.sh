@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Deploiement de FleetBook sur le cluster kind local.
 # Etapes : verification de pipeline verte, secret, migration Drizzle, seed,
-# application de l'image validee depuis GHCR, controle de sante.
+# application de l'image validee depuis GHCR, controle de sante, pile d'observabilite.
 set -euo pipefail
 
 GITHUB_REPO=${GITHUB_REPO:-00hbc000/FleetBook}
@@ -54,3 +54,22 @@ kubectl -n "$NAMESPACE" rollout status deployment/app --timeout=300s
 sleep 3
 curl -fsS http://127.0.0.1:8081/api/health && echo
 echo "Application disponible : http://127.0.0.1:8081"
+
+# --- Observabilite (zone 5) ---
+kubectl apply -f k8s/40-monitoring.yaml
+kubectl apply -f k8s/41-prometheus.yaml
+kubectl apply -f k8s/42-loki.yaml
+kubectl apply -f k8s/43-promtail.yaml
+
+if ! kubectl -n monitoring get secret grafana-admin >/dev/null 2>&1; then
+  GRAFANA_PW=$(openssl rand -hex 12)
+  kubectl -n monitoring create secret generic grafana-admin --from-literal=admin-user=admin --from-literal=admin-password="$GRAFANA_PW"
+  echo "Mot de passe Grafana (admin) : $GRAFANA_PW  <- a conserver"
+fi
+
+kubectl apply -f k8s/44-grafana.yaml
+kubectl -n monitoring rollout status deployment/prometheus --timeout=300s
+kubectl -n monitoring rollout status deployment/loki --timeout=300s
+kubectl -n monitoring rollout status daemonset/promtail --timeout=300s
+kubectl -n monitoring rollout status deployment/grafana --timeout=300s
+echo "Grafana : kubectl -n monitoring port-forward svc/grafana 3000:3000 puis http://localhost:3000/d/fleetbook"
